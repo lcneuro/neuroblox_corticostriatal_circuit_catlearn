@@ -1,5 +1,5 @@
 ### A Pluto.jl notebook ###
-# v0.19.9
+# v0.19.45
 
 using Markdown
 using InteractiveUtils
@@ -18,12 +18,6 @@ using ModelingToolkit
 
 # ╔═╡ c1ee3eed-5730-4ab1-a012-af6cce952024
 using DifferentialEquations
-
-# ╔═╡ 407ed4ff-9fec-4df8-a0ba-c264d1f7d2db
-using OrdinaryDiffEq
-
-# ╔═╡ 5099a19c-0a25-4dc1-8442-ddf9ac56ef8f
-using StochasticDiffEq
 
 # ╔═╡ 72112d41-4432-4233-9ab3-d9011674a3f8
 using Plots
@@ -51,6 +45,12 @@ include("Findpeaks.jl")
 
 # ╔═╡ 8872e8db-cb41-4068-8401-1721f07642c8
 #str_in decay by 1% cort-cort max wt 5, thal_cort max wt 6, thal_cort outdeg = 8, CS syn = wt X 1, distort 2, CS decay = 0.99, thal_cort lr = 1/(200*500), str LR = 0.001
+
+# ╔═╡ 407ed4ff-9fec-4df8-a0ba-c264d1f7d2db
+#using OrdinaryDiffEq
+
+# ╔═╡ 5099a19c-0a25-4dc1-8442-ddf9ac56ef8f
+#using StochasticDiffEq
 
 # ╔═╡ 64faf636-43c9-4aa9-8d78-e7aa4d91db50
 #Pkg.add("PlutoUI")
@@ -178,7 +178,7 @@ end
 
 # ╔═╡ c35348de-e55e-4c20-895e-f49a1bbeec4b
 function HH_neuron_TAN_excit(;name,E_syn=0.0,G_syn=2,I_in=0,freq=0,phase=0,τ=10)
-	sts = @variables V(t)=-65.00 n(t)=0.32 m(t)=0.05 h(t)=0.59 Isyn(t)=0.0 G(t)=0.0 z(t)=0.0 Gₛₜₚ(t)=0.0  
+	sts = @variables V(t)=-65.00 n(t)=0.32 m(t)=0.05 h(t)=0.59 Iasc(t) = 0.0 Isyn(t)=0.0 G(t)=0.0 z(t)=0.0 Gₛₜₚ(t)=0.0  
 	
 	ps = @parameters E_syn=E_syn G_Na = 52 G_K  = 20 G_L = 0.1 E_Na = 55 E_K = -90 E_L = -60 G_syn = G_syn V_shift = 10 V_range = 35 τ_syn = 10 τ₁ = 0.1 τ₂ = τ τ₃ = 2000 I_in = I_in freq=freq phase=phase
 	
@@ -200,7 +200,7 @@ G_asymp(v,G_syn) = (G_syn/(1 + exp(-4.394*((v-V_shift)/V_range))))
 #stim_on(t) = 0.5*(1+sign(600-t))
 	
 	eqs = [ 
-		   D(V)~-G_Na*m^3*h*(V-E_Na)-G_K*n^4*(V-E_K)-G_L*(V-E_L)+I_in*(sin(t*freq*2*pi/1000)+1)+Isyn,
+		   D(V)~-G_Na*m^3*h*(V-E_Na)-G_K*n^4*(V-E_K)-G_L*(V-E_L)+I_in*(sin(t*freq*2*pi/1000)+1)+Isyn+Iasc,
 		   D(n)~ϕ*(αₙ(V)*(1-n)-βₙ(V)*n), 
 	       D(m)~ϕ*(αₘ(V)*(1-m)-βₘ(V)*m), 
 	       D(h)~ϕ*(αₕ(V)*(1-h)-βₕ(V)*h),
@@ -501,7 +501,7 @@ TAN_nrn[TAN_ar] .= 1
 
 	ncb = length(targ_ar)
 	thal_outdeg=8#20#8#4
-    thal_cort_wt = 8#0.5#6#3#6#0.5#5#0.5#0.1*1#3
+    thal_cort_wt = 0.5#6#3#6#0.5#5#0.5#0.1*1#3
 	   
 	for kk = 1:length(targ_ar[ncb])
 	      thal_ar_sh[1] = shuffle(thal_ar[1])
@@ -641,7 +641,7 @@ block_ar[1], inhib_ar[1], targ_ar[1], inhib_mod_ar[1], inhib_ff_ar[1]= cb_adj_ge
 	end
 	
 outdeg=8#4
-wt=3#0.5#0.25#2
+wt=1#0.5#0.25#2
 	
 Nrns_cort, syn_cort, inhib_ar, targ_ar, inhib, inh_nrn, inhib_mod, inh_mod_nrn, inhib_ff_ar, inhib_ff, inh_ff_nrn = connect_cb_hypergeometric(block_ar,inhib_ar,targ_ar,inhib_mod_ar, inhib_ff_ar,outdeg,wt);
 
@@ -739,7 +739,7 @@ end
 
 # ╔═╡ f2f4b6b3-9098-4dcb-ac10-b838af07980a
 begin
-	ptrn = readdlm("Dist4.txt",',')
+	ptrn = readdlm("Dist7.txt",',')
 end;
 
 # ╔═╡ 88ebe172-46a3-4032-acf3-950e5d9ab7a6
@@ -817,7 +817,7 @@ begin
 	I_in[STN_ar[1]] .= 0.5*(10/30)*30*ones(length(STN_ar[1])) + 0.0*randn(length(STN_ar[1]));#20 
 	I_in[STN_ar[2]] .= 0.5*(10/30)*30*ones(length(STN_ar[2])) + 0.0*randn(length(STN_ar[2]));#20 
 
-	I_in[TAN_ar] .= 1.5
+	I_in[TAN_ar] .= 1.5*0
 
 	#I_in[inhib_ff] .= 4.5
 
@@ -854,9 +854,10 @@ end
 begin
  amp = 0.8	
  str_amp = 0.2*0
+ tan_itn = 1.5
  asc_input1 = ascending_input(t,freq1,phase_pfc,amp)
  asc_input2 = ascending_input(t,freq2,phase_pfc,amp)
- str_input = ascending_input(t,freq3,0,str_amp)	
+ str_input = ascending_input(t,freq3,phase_pfc,tan_itn)	
  input_ar = [asc_input1,asc_input2]
  for kk = 1:nblocks-2
  push!(input_ar,asc_input2)
@@ -912,11 +913,16 @@ function synaptic_network(;name, sys=sys, adj_matrix=adj_matrix, input_ar=input_
 			push!(syn_eqs,eq2[1])
 		end
 
-		if str_nrn[ii]>0
+		if TAN_nrn[ii]>0
 			eq2 = [0 ~ postsyn_nrn.Iasc - input_ar[end]];
 			push!(syn_eqs,eq2[1])
 		end
 
+		if str_nrn[ii]>0
+			eq2 = [0 ~ postsyn_nrn.Iasc];
+			push!(syn_eqs,eq2[1])
+		end
+		
 		if GPi_nrn[ii]>0
 		    eq2 = [0 ~ postsyn_nrn.Iasc];
 			push!(syn_eqs,eq2[1])
@@ -1026,6 +1032,9 @@ global phase_ind = indexof(phase_pfc,parameters(syn_net))
 
 
 end
+
+# ╔═╡ 68327a97-59bf-466b-ad28-4161a66682aa
+Nrns
 
 # ╔═╡ 9a3721f6-2b99-400e-af9d-c3969b57369a
 begin
@@ -1160,6 +1169,9 @@ end
 end
 """
 end
+
+# ╔═╡ 49033ddf-c182-4d40-a65e-726fa536d90e
+targ_ar[1]
 
 # ╔═╡ 143ab0df-0fd1-4add-ae31-1b734eb86ef4
 begin
@@ -1423,10 +1435,10 @@ end
 
 # ╔═╡ fa2538b2-c6e2-4ef3-9972-bace6f4ce689
 begin
-plot(f_pfc,pxx_pfc,xlims=[0,60],ylims=[0,5e-5]);
+plot(f_pfc,pxx_pfc,xlims=[0,60],ylims=[0,1e-4]);
 #plot(f_VC,pxx_VC,xlims=[0,60],ylims=[0,2e-6]);
 #plot(f_str1[:],pxx_str1[:],color = "red",xlims=[0,60])#,ylims=[0,5])	
-#plot!(f_str2[:],pxx_str2[:],color = "red",xlims=[0,60])#,ylims=[0,2],xlims=[0,60])	
+plot!(f_str2[:],pxx_str2[:],color = "red",xlims=[0,60])#,ylims=[0,2],xlims=[0,60])	
 #plot!(f_thal2[:],pxx_thal2[:],ylims=[0,1],xlims=[0,30])	
 #plot!(f4[2:50],pxx4[2:50],color = "green", ylims=[0,3])		
 end
@@ -1448,6 +1460,38 @@ average_str__ = (round.(average_str2_ .*100))./100
 	end
 		 """ 
 end
+
+# ╔═╡ 13f9dd2a-2566-47ce-88dd-448c13717724
+begin
+Vw=zeros(Nrns,length(soll2.t));
+
+	for ii = 1:Nrns
+		
+	   	Vw[ii,:] =  ss2[(((ii-1)*6)+1),1:end];
+		
+		
+	end
+	
+end
+
+# ╔═╡ e41b9d11-0331-4318-8cbb-5d3554965f0e
+begin
+	slw=zeros(length(targ_ar[1]))
+	plot(soll2.t,Vw[2,:])
+	for ii = 1:length(targ_ar[1])
+	 tw = findpeaks(Vw[targ_ar[1][ii],:],soll2.t,min_height=0.0);
+     slw[ii]=length(tw);
+	end
+end
+
+# ╔═╡ 75477cad-d973-45b8-9ce5-ab42d0f54051
+scatter(slw)
+
+# ╔═╡ 5ea63b2d-6867-4185-91d5-f74c9e88230f
+mean(slw)
+
+# ╔═╡ 900edcf4-bbf8-436f-a725-4a5fe25aaef7
+length(findall(x->x>0,slw))
 
 # ╔═╡ 0d111ef5-7536-4c42-a704-4df72c5d41fd
 plot(soll2.t,GG[targ_ar[2][:],:]',legend=false)
@@ -1490,6 +1534,16 @@ pl1 = plot(soll2.t,[VV[targ_ar[2][1:100],:]'],legend=false,yticks=[],color = "bl
 
 plot!(pl1,soll2.t,[VV[inhib_ar[2][1:end],:]'],legend=false,yticks=[],color = "red",ylabel = "single neuron \n activity")
 plot!(pl1,soll2.t,[VV[inhib_mod_ar[2],:]],legend=false,yticks=[],color = "green")	
+end
+
+# ╔═╡ 38426b82-b213-4406-ae54-5e43ad1a6e40
+plot(soll2.t[1:900],V[targ_ar[2][6],1:900])
+
+# ╔═╡ daaaf5ac-b764-419f-9289-4ede7b9b92c4
+begin
+vsh=V[targ_ar[2][6],1:900]
+	ttt = findpeaks(vsh,soll2.t[1:900],min_height=0.0)
+	length(ttt)
 end
 
 # ╔═╡ 97f87264-8ae1-4944-bb69-10af7e0cc197
@@ -1678,10 +1732,19 @@ begin
 	
 end
 
+# ╔═╡ 1f486a25-ee06-4989-9396-02341700b9ac
+(str_ar_tot)
+
+# ╔═╡ 404fa06a-72bf-42c2-8dad-b87959f2a19d
+TAN_ar
+
+# ╔═╡ 186efe2b-f5de-4857-9368-e59f94158046
+prob_new.p[phase_ind]
+
 # ╔═╡ 8bc64567-0014-428e-94ea-4163bc710251
 begin
 
-cort_learning=0
+cort_learning=1
 
 	
 	
@@ -1692,7 +1755,7 @@ I_in_arr3 = zeros(700,225)
 
 if cort_learning ==1	
 #goto
-for loop3 =1:700
+for loop3 = 1:700
 
 	@info loop3
 
@@ -1803,7 +1866,7 @@ decision=0
 ###############################################################################
  # TAN pause period   	
     
- prob_param[tan_ind] .= 1.5#*tan_input1_short/tan_amp
+ #prob_param[tan_ind] .= 1.5#*tan_input1_short/tan_amp
 
 prob4 = remake(prob;p=prob_param,u0=break_state,tspan=(90.1, 180));	
 solt4 = solve(prob4,Vern7(),saveat = 0.1)
@@ -1873,7 +1936,7 @@ prob_param[str_ind2] .= -2	#shut off str 2
 else
 prob_param[str_ind1] .= -2	#shut off str 1	
 end	
-prob_param[tan_ind] .= 1.5
+#prob_param[tan_ind] .= 1.5
 	
 prob5 = remake(prob;p=prob_param,u0=break_state2,tspan=(180.1, 600));	
 solt5 = solve(prob5,Vern7(),saveat = 0.1)
@@ -1996,12 +2059,15 @@ g_thal2_pfc=zeros(length(targ_ar[2]),length(time))
 			pres = preblock[source_con]
 			
 			for jj = 1:length(pres)
-				pre_v = sol3[(((pres[jj]-1)*6)+1),1:end]
+	#ERROR			pre_v = sol3[(((pres[jj]-1)*6)+1),1:end] 
+				pre_v = sol3[(((pres[jj]-1)*7)+1),1:end]
 			  
 			  if (maximum(pre_v)>0) 	  
 				pre_tt = findpeaks(pre_v,time,min_height=0.0)
 			  
-				   adj3[targ_ar[ii][kk],pres[jj]] = adj3[targ_ar[ii][kk],pres[jj]] + ((1/200)*spks[ii][kk]*length(pre_tt)/100)*maximum([(5-adj3[targ_ar[ii][kk],pres[jj]]),0])
+	#ERROR			   adj3[targ_ar[ii][kk],pres[jj]] = adj3[targ_ar[ii][kk],pres[jj]] + ((1/200)*spks[ii][kk]*length(pre_tt)/100)*maximum([(5-adj3[targ_ar[ii][kk],pres[jj]]),0])
+
+				     adj3[targ_ar[ii][kk],pres[jj]] = adj3[targ_ar[ii][kk],pres[jj]] + ((1/20)*spks[ii][kk]*length(pre_tt)/100)*maximum([(5-adj3[targ_ar[ii][kk],pres[jj]]),0])
 				  
             #       adj3[targ_ar[ii][kk],pres[jj]] = adj3[targ_ar[ii][kk],pres[jj]] + 0.1*((1/100)*spks[ii][kk]*length(pre_tt)/100)*(5-adj3[targ_ar[ii][kk],pres[jj]])
 				  
@@ -2035,7 +2101,7 @@ g_thal2_pfc=zeros(length(targ_ar[2]),length(time))
 			  
 				#adj3[targ_ar[ii][kk],thal_pres[jj]] = adj3[targ_ar[ii][kk],thal_pres[jj]] + 0.5*0.25*0.1*((1/100)*spks[ii][kk]*length(pre_tt)/500)*maximum([(5-adj3[targ_ar[ii][kk],thal_pres[jj]]),0])
 
-				adj3[targ_ar[ii][kk],thal_pres[jj]] = adj3[targ_ar[ii][kk],thal_pres[jj]] + 1/1*((1/200)*spks[ii][kk]*length(pre_tt)/500)*maximum([(6-adj3[targ_ar[ii][kk],thal_pres[jj]]),0])  
+				adj3[targ_ar[ii][kk],thal_pres[jj]] = adj3[targ_ar[ii][kk],thal_pres[jj]] + 1/1*((1/200)*spks[ii][kk]*length(pre_tt)/300)*maximum([(6-adj3[targ_ar[ii][kk],thal_pres[jj]]),0])  
 
 				#  if adj3[targ_ar[ii][kk],thal_pres[jj]] >1.5
 
@@ -2175,7 +2241,7 @@ end
 # ╔═╡ 4690e30e-8c91-444d-bc46-7b476b0f1ca5
 begin
 plot(soll2.t,g_thal1_pfc_rec[660:700,:]',legend=false)
-	plot!(soll2.t,g_thal1_pfc_rec[1:150,:]')
+	plot!(soll2.t,g_thal1_pfc_rec[1:550,:]')
 	
 end
 
@@ -2198,16 +2264,19 @@ end
 plot(dop_ar[30:end]./30,legend=false,xlabel="trials",ylabel="accuracy",ylims=(0,1))
 
 # ╔═╡ 04a89c6a-b549-4d29-ba07-c05b3ca8c8eb
-plot(soll2.t,pfc_LSS'[:,645],legend=false)
+plot(soll2.t,pfc_LSS'[:,700],legend=false)
 
 # ╔═╡ 4d221955-5662-4136-9d70-7649717e58bc
-plot(soll2.t,str_LSS'[:,675],legend=false)
+plot(soll2.t,str_LSS'[:,500],legend=false)
 
 # ╔═╡ 3e979bd4-a173-44fd-9a5e-c9b04a718827
 Gray.(trial_dec[1:700]./2)
 
 # ╔═╡ 4cae57cb-56cb-4158-8982-c8f6b90af828
 Gray.(trial[1:700])
+
+# ╔═╡ 2159c7a0-5c1a-4229-9ee5-807f2e92ed8c
+sum(trial)
 
 # ╔═╡ 7e2c891d-b135-4613-81ec-5a7a73f33f82
 begin
@@ -2240,100 +2309,106 @@ begin
 	end
 end
 
+# ╔═╡ 97f9c7e4-d609-4966-a883-a97398c2ce7a
+plot(Gray.(sign.(str_LSS_rnd/0.1)))
+
+# ╔═╡ 8a7c86e8-e8d0-4bb2-af16-bdad62179d2f
+plot(Gray.(sign.(pfc_LSS_rnd/0.1)))
+
 # ╔═╡ 414e7b14-458b-4cf8-bd0f-8b0d4c8cc993
 begin
-"""
 
-	open("perf64.txt", "w") do io
+"""
+	open("perf85.txt", "w") do io
           writedlm(io, trial, ",")
 	end
 
-	open("dec64.txt", "w") do io
+	open("dec85.txt", "w") do io
           writedlm(io, trial_dec, ",")
 	end
 
-	open("pfc64.txt", "w") do io
+	open("pfc85.txt", "w") do io
           writedlm(io, pfc_avg_rnd, ",")
 	end
 	
-   open("str64.txt", "w") do io
+   open("str85.txt", "w") do io
           writedlm(io, str_avg_rnd, ",")
 	end
 
-   	open("pfcLSS64.txt", "w") do io
+   	open("pfcLSS85.txt", "w") do io
           writedlm(io, pfc_LSS_rnd, ",")
 	end
 
-	open("strLSS64.txt", "w") do io
+	open("strLSS85.txt", "w") do io
           writedlm(io, str_LSS_rnd, ",")
 	end
 
-   open("full_circuit_adj64.txt", "w") do io
+   open("full_circuit_adj85.txt", "w") do io
           writedlm(io, adj3, ",")
 	   
 	end
 
-	open("tan_input64.txt", "w") do io
+	open("tan_input85.txt", "w") do io
           writedlm(io, tan_input_ar1, ",")	
 end
 
-	open("CS1_input64.txt", "w") do io
+	open("CS1_input85.txt", "w") do io
           writedlm(io, spike_input_ar1, ",")	
 end
 
-	open("CS2_input64.txt", "w") do io
+	open("CS2_input85.txt", "w") do io
           writedlm(io, spike_input_ar2, ",")	
 end
 
- open("pfc_spike_rec64.txt", "w") do io
+ open("pfc_spike_rec85.txt", "w") do io
           writedlm(io, pfc_spike_rec, ",")	
 end
 
-open("pfc_spike_shrt_rec64.txt", "w") do io
+open("pfc_spike_shrt_rec85.txt", "w") do io
           writedlm(io, pfc_spike_shrt_rec, ",")	
 end
 
-	open("str_spike_rec64.txt", "w") do io
+	open("str_spike_rec85.txt", "w") do io
           writedlm(io, str_spike_rec, ",")	
 end
 
-	open("str_spike_shrt_rec64.txt", "w") do io
+	open("str_spike_shrt_rec85.txt", "w") do io
           writedlm(io, str_spike_shrt_rec, ",")	
 end
 
-open("spt_pattern64.txt", "w") do io
+open("spt_pattern85.txt", "w") do io
           writedlm(io, spt_rec, ",")#
 	end
 
-open("str_rec1_64.txt","w") do io
+open("str_rec1_85.txt","w") do io
           writedlm(io,str_rec1,",")
 end
 
-open("str_rec2_64.txt","w") do io
+open("str_rec2_85.txt","w") do io
           writedlm(io,str_rec2,",")
 end
 
-open("gthal1_64.txt","w") do io
+open("gthal1_85.txt","w") do io
           writedlm(io,g_thal1_rnd,",")
 end
 
-open("gthal2_64.txt","w") do io
+open("gthal2_85.txt","w") do io
           writedlm(io,g_thal2_rnd,",")
 end
 
-open("cort_cort_wt_64.txt","w") do io
+open("cort_cort_wt_85.txt","w") do io
           writedlm(io,cort_cort_wt_rec,",")
 end
 
-open("thal1_cort_wt_64.txt","w") do io
+open("thal1_cort_wt_85.txt","w") do io
           writedlm(io,thal1_cort_wt_rec,",")
 end
 
-open("thal2_cort_wt_64.txt","w") do io
+open("thal2_cort_wt_85.txt","w") do io
           writedlm(io,thal2_cort_wt_rec,",")
 end
 
-open("image_sn64.txt", "w") do io
+open("image_sn85.txt", "w") do io
           writedlm(io, image_sn, ",")	
 end
 
@@ -2354,10 +2429,10 @@ plot(ppl1,ppl2,layout=(1,2))
 end
 
 # ╔═╡ 4b62d873-589c-4acc-87fc-b88275580a08
-plot(Gray.(adj3[targ_ar[2],targ_ar[1]]/4))
+plot(Gray.(adj3[targ_ar[2],targ_ar[1]]/5))
 
-# ╔═╡ c654cae2-c51b-401d-849d-9d1a32e9e214
-maximum(adj3[targ_ar[2],targ_ar[1]])
+# ╔═╡ 9f9c124d-352a-4ed9-949f-c4aa53b26882
+sum((adj3[targ_ar[2],targ_ar[1]]))/1800
 
 # ╔═╡ 611c69f9-dc20-42de-a908-baf8edc7b6e4
 maximum(adj3[targ_ar[2],thal_ar[1]])
@@ -2382,6 +2457,12 @@ Gray.(str_in[2][2]./maximum(str_in[2][2]))
 
 # ╔═╡ 7e6b443a-941b-43fd-a11b-4ecf10bcf78e
 plot(Gray.(str_rec1[:,1:700]./maximum(str_rec1)))
+
+# ╔═╡ b680fc81-6da5-4e7f-981c-8172251ce3de
+begin
+	plot(mean(str_rec1,dims=1)[1,:])
+	plot!(mean(str_rec2,dims=1)[1,:])
+end
 
 # ╔═╡ 792289ee-d971-4362-9a6c-aac49e14d911
 plot(Gray.(str_rec2[:,1:700]./maximum(str_rec2)))
@@ -2429,11 +2510,18 @@ plot(Gray.(str_rec2[:,1:700]./maximum(str_rec2)))
 # ╠═092502cf-4a04-4d70-b954-f3dfd2a6c9fa
 # ╠═e1932634-20f9-4281-bbf9-6e910fc5dd8b
 # ╠═ec6d5982-6e80-48ed-9d49-edc7fb07888c
+# ╠═68327a97-59bf-466b-ad28-4161a66682aa
 # ╠═9a3721f6-2b99-400e-af9d-c3969b57369a
 # ╠═58478f96-2575-473c-bf54-4f34dcb421cc
 # ╠═9f7fe203-ac41-4502-9b41-7028bf9f21b3
 # ╠═225e1431-bf2a-4855-abd6-f0d826b5abe8
 # ╠═86b87ae5-01c9-4fc8-b37a-e5bf8b8d9d72
+# ╠═13f9dd2a-2566-47ce-88dd-448c13717724
+# ╠═49033ddf-c182-4d40-a65e-726fa536d90e
+# ╠═e41b9d11-0331-4318-8cbb-5d3554965f0e
+# ╠═75477cad-d973-45b8-9ce5-ab42d0f54051
+# ╠═5ea63b2d-6867-4185-91d5-f74c9e88230f
+# ╠═900edcf4-bbf8-436f-a725-4a5fe25aaef7
 # ╠═143ab0df-0fd1-4add-ae31-1b734eb86ef4
 # ╠═0d111ef5-7536-4c42-a704-4df72c5d41fd
 # ╠═bdf18d67-d57a-45f2-9f49-c9731adee5d6
@@ -2448,6 +2536,8 @@ plot(Gray.(str_rec2[:,1:700]./maximum(str_rec2)))
 # ╠═ed2e05a2-15eb-48d0-9cf7-5a0468a3f05d
 # ╠═5824a794-bd0d-44d8-a9f2-c5761b496ac9
 # ╠═63cd9e70-a580-489d-9897-2fb127ef7c35
+# ╠═38426b82-b213-4406-ae54-5e43ad1a6e40
+# ╠═daaaf5ac-b764-419f-9289-4ede7b9b92c4
 # ╠═192e8ee4-aa06-412e-97ad-0197da60bc86
 # ╠═97f87264-8ae1-4944-bb69-10af7e0cc197
 # ╠═e7ce9324-f01e-44a5-b7ed-b4ddf867c1b1
@@ -2465,6 +2555,9 @@ plot(Gray.(str_rec2[:,1:700]./maximum(str_rec2)))
 # ╠═9f53fe69-a9eb-41fd-917f-11a324bd9dee
 # ╠═a110ce12-bde6-401d-8aff-2dfbd99e57b5
 # ╠═00ce3408-fbbf-419f-a5d3-10ea63988802
+# ╠═1f486a25-ee06-4989-9396-02341700b9ac
+# ╠═404fa06a-72bf-42c2-8dad-b87959f2a19d
+# ╠═186efe2b-f5de-4857-9368-e59f94158046
 # ╠═8bc64567-0014-428e-94ea-4163bc710251
 # ╠═4690e30e-8c91-444d-bc46-7b476b0f1ca5
 # ╠═eb3e4c23-c237-481d-ad99-2ef865675a3d
@@ -2474,11 +2567,14 @@ plot(Gray.(str_rec2[:,1:700]./maximum(str_rec2)))
 # ╠═4d221955-5662-4136-9d70-7649717e58bc
 # ╠═3e979bd4-a173-44fd-9a5e-c9b04a718827
 # ╠═4cae57cb-56cb-4158-8982-c8f6b90af828
+# ╠═2159c7a0-5c1a-4229-9ee5-807f2e92ed8c
 # ╠═7e2c891d-b135-4613-81ec-5a7a73f33f82
+# ╠═97f9c7e4-d609-4966-a883-a97398c2ce7a
+# ╠═8a7c86e8-e8d0-4bb2-af16-bdad62179d2f
 # ╠═414e7b14-458b-4cf8-bd0f-8b0d4c8cc993
 # ╠═65c5dc63-241b-4525-816c-3f75899e4e34
 # ╠═4b62d873-589c-4acc-87fc-b88275580a08
-# ╠═c654cae2-c51b-401d-849d-9d1a32e9e214
+# ╠═9f9c124d-352a-4ed9-949f-c4aa53b26882
 # ╠═611c69f9-dc20-42de-a908-baf8edc7b6e4
 # ╠═237b9b1d-b3a8-404d-bc12-fb91e49560d4
 # ╠═f47560ab-24aa-4e3a-af31-7f8f83f869df
@@ -2487,4 +2583,5 @@ plot(Gray.(str_rec2[:,1:700]./maximum(str_rec2)))
 # ╠═e6645293-3f5e-4094-9c4c-732de6c3ae08
 # ╠═2aa3f3bd-c12c-4cf0-9d3a-058ca3095eb2
 # ╠═7e6b443a-941b-43fd-a11b-4ecf10bcf78e
+# ╠═b680fc81-6da5-4e7f-981c-8172251ce3de
 # ╠═792289ee-d971-4362-9a6c-aac49e14d911
