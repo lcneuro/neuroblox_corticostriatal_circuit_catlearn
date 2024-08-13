@@ -43,29 +43,11 @@ using Printf
 # ╔═╡ 0a803feb-3dd1-43ac-9afc-1b0afd19ce2d
 include("Findpeaks.jl")
 
-# ╔═╡ 8872e8db-cb41-4068-8401-1721f07642c8
-#str_in decay by 1% cort-cort max wt 5, thal_cort max wt 6, thal_cort outdeg = 8, CS syn = wt X 1, distort 2, CS decay = 0.99, thal_cort lr = 1/(200*500), str LR = 0.001
-
-# ╔═╡ 407ed4ff-9fec-4df8-a0ba-c264d1f7d2db
-#using OrdinaryDiffEq
-
-# ╔═╡ 5099a19c-0a25-4dc1-8442-ddf9ac56ef8f
-#using StochasticDiffEq
-
-# ╔═╡ 64faf636-43c9-4aa9-8d78-e7aa4d91db50
-#Pkg.add("PlutoUI")
-
 # ╔═╡ 738fb9f1-81f3-4738-a8bd-407461c9586f
 @variables t
 
 # ╔═╡ ca25e5b5-9c81-461f-b014-54221ffd06c6
 D = Differential(t)
-
-# ╔═╡ e4b89f6a-21f0-42ca-950c-448afa5ec535
-function ascending_input(t,freq,phase,amp=0.65)
-
-	return amp*(sin(t*freq*2*pi/1000-phase+pi/2)+1)
-end
 
 # ╔═╡ 61c5b42a-8723-4334-a3ba-8c8558b11284
 function HH_neuron_wang_excit(;name,E_syn=0.0,G_syn=2,I_in=0,freq=0,phase=0,τ=10)
@@ -197,7 +179,7 @@ function HH_neuron_TAN_excit(;name,E_syn=0.0,G_syn=2,I_in=0,freq=0,phase=0,τ=10
 ϕ = 5 
 	
 G_asymp(v,G_syn) = (G_syn/(1 + exp(-4.394*((v-V_shift)/V_range))))
-#stim_on(t) = 0.5*(1+sign(600-t))
+
 	
 	eqs = [ 
 		   D(V)~-G_Na*m^3*h*(V-E_Na)-G_K*n^4*(V-E_K)-G_L*(V-E_L)+I_in*(sin(t*freq*2*pi/1000)+1)+Isyn+Iasc,
@@ -211,17 +193,23 @@ G_asymp(v,G_syn) = (G_syn/(1 + exp(-4.394*((v-V_shift)/V_range))))
 	ODESystem(eqs,t,sts,ps;name=name)
 end
 
-# ╔═╡ 95653cf9-4db8-4cf9-b38b-fcb639c03bd7
-function NextGenerationBlox(;name, C=30.0, Δ=1.0, η_0=5.0, v_syn=-10.0, alpha_inv=35.0, k=0.105)
-        params = @parameters C=C Δ=Δ η_0=η_0 v_syn=v_syn alpha_inv=alpha_inv k=k
-        sts    = @variables Z(t)=0.5 g(t)=1.6
-        Z = ModelingToolkit.unwrap(Z)
-        g = ModelingToolkit.unwrap(g)
-        C, Δ, η_0, v_syn, alpha_inv, k = map(ModelingToolkit.unwrap, [C, Δ, η_0, v_syn, alpha_inv, k])
-        eqs = [D(Z)~ (1/C)*(-im*((Z-1)^2)/2 + (((Z+1)^2)/2)*(-Δ + im*(η_0) + im*v_syn*g) - ((Z^2-1)/2)*g),
-                    D(g) ~ alpha_inv*((k/(C*pi))*(1-abs(Z)^2)/(1+Z+conj(Z)+abs(Z)^2) - g)]
+# ╔═╡ 9fae6c1b-7f39-4196-9afc-5741a953e893
+function NextGenerationEIBlox(;name,namespace=nothing, Cₑ=30.0,Cᵢ=30.0, Δₑ=0.5, Δᵢ=0.5, η_0ₑ=10.0, η_0ᵢ=0.0, v_synₑₑ=10.0, v_synₑᵢ=-10.0, v_synᵢₑ=10.0, v_synᵢᵢ=-10.0, alpha_invₑₑ=10.0, alpha_invₑᵢ=0.8, alpha_invᵢₑ=10.0, alpha_invᵢᵢ=0.8, kₑₑ=0, kₑᵢ=0.5, kᵢₑ=0.65, kᵢᵢ=0)
+        params = @parameters Cₑ=Cₑ Cᵢ=Cᵢ Δₑ=Δₑ Δᵢ=Δᵢ η_0ₑ=η_0ₑ η_0ᵢ=η_0ᵢ v_synₑₑ=v_synₑₑ v_synₑᵢ=v_synₑᵢ v_synᵢₑ=v_synᵢₑ v_synᵢᵢ=v_synᵢᵢ alpha_invₑₑ=alpha_invₑₑ alpha_invₑᵢ=alpha_invₑᵢ alpha_invᵢₑ=alpha_invᵢₑ alpha_invᵢᵢ=alpha_invᵢᵢ kₑₑ=kₑₑ kₑᵢ=kₑᵢ kᵢₑ=kᵢₑ kᵢᵢ=kᵢᵢ
+        sts    = @variables aₑ(t)=-0.6 [output=true] bₑ(t)=0.18 [output=true] aᵢ(t)=0.02 [output=true] bᵢ(t)=0.21 [output=true] gₑₑ(t)=0 gₑᵢ(t)=0.23 gᵢₑ(t)=0.26 gᵢᵢ(t)=0
+        
+        #Z = a + ib
+        
+        eqs = [ D(aₑ) ~ (1/Cₑ)*(bₑ*(aₑ-1) - (Δₑ/2)*((aₑ+1)^2-bₑ^2) - η_0ₑ*bₑ*(aₑ+1) - (v_synₑₑ*gₑₑ+v_synₑᵢ*gₑᵢ)*(bₑ*(aₑ+1)) - (gₑₑ/2+gₑᵢ/2)*(aₑ^2-bₑ^2-1)),
+                D(bₑ) ~ (1/Cₑ)*((bₑ^2-(aₑ-1)^2)/2 - Δₑ*bₑ*(aₑ+1) + (η_0ₑ/2)*((aₑ+1)^2-bₑ^2) + (v_synₑₑ*(gₑₑ/2)+v_synₑᵢ*(gₑᵢ/2))*((aₑ+1)^2-bₑ^2) - aₑ*bₑ*(gₑₑ+gₑᵢ)),
+                D(aᵢ) ~ (1/Cᵢ)*(bᵢ*(aᵢ-1) - (Δᵢ/2)*((aᵢ+1)^2-bᵢ^2) - η_0ᵢ*bᵢ*(aᵢ+1) - (v_synᵢₑ*gᵢₑ+v_synᵢᵢ*gᵢᵢ)*(bᵢ*(aᵢ+1)) - (gᵢₑ/2+gᵢᵢ/2)*(aᵢ^2-bᵢ^2-1)),
+                D(bᵢ) ~ (1/Cᵢ)*((bᵢ^2-(aᵢ-1)^2)/2 - Δᵢ*bᵢ*(aᵢ+1) + (η_0ᵢ/2)*((aᵢ+1)^2-bᵢ^2) + (v_synᵢₑ*(gᵢₑ/2)+v_synᵢᵢ*(gᵢᵢ/2))*((aᵢ+1)^2-bᵢ^2) - aᵢ*bᵢ*(gᵢₑ+gᵢᵢ)),
+                D(gₑₑ) ~ alpha_invₑₑ*((kₑₑ/(Cₑ*pi))*((1-aₑ^2-bₑ^2)/(1+2*aₑ+aₑ^2+bₑ^2)) - gₑₑ),
+                D(gₑᵢ) ~ alpha_invₑᵢ*((kₑᵢ/(Cᵢ*pi))*((1-aᵢ^2-bᵢ^2)/(1+2*aᵢ+aᵢ^2+bᵢ^2)) - gₑᵢ),
+                D(gᵢₑ) ~ alpha_invᵢₑ*((kᵢₑ/(Cₑ*pi))*((1-aₑ^2-bₑ^2)/(1+2*aₑ+aₑ^2+bₑ^2)) - gᵢₑ),
+                D(gᵢᵢ) ~ alpha_invᵢᵢ*((kᵢᵢ/(Cᵢ*pi))*((1-aᵢ^2-bᵢ^2)/(1+2*aᵢ+aᵢ^2+bᵢ^2)) - gᵢᵢ)
+               ]
         odesys = ODESystem(eqs, t, sts, params; name=name)
-        #new(C, Δ, η_0, v_syn, alpha_inv, k, odesys.Z, odesys)
     end
 
 # ╔═╡ ae38608c-2193-4439-b439-29fa7805c05f
@@ -356,18 +344,10 @@ function connect_cb_hypergeometric(block_ar, inhib_ar, targ_ar, inhib_mod_ar,inh
 		syn[(chk+1):(chk+l[jj]),(chk+1):(chk+l[jj])] = block_ar[jj]
 
 		if jj<n_block
-           """
-			lt1 = length(targ_ar[jj])
-			lt2 = length(targ_ar[jj+1])
-			for kk = 1:lt1
-				ind2 = randperm(lt2)
-				syn[targ_ar[jj+1][ind2[1:2]],targ_ar[jj][kk]] .= 1*3;
-			end
-			"""
+          
             lt1 = length(targ_ar[jj])
 			lt2 = length(targ_ar[jj+1])
-			#wt = 3
-            I = outdegree
+			I = outdegree
 			S = convert(Int64,ceil(I*lt1/lt2))
 
 			for ii = 1:lt2
@@ -458,40 +438,31 @@ STN_nrn[STN_ar[2]] .= 1
 TAN_nrn[TAN_ar] .= 1
 # connect GPi to thal :
 
-	GPi_outdeg = 10#1#4
+	GPi_outdeg = 10
 	
-	GPi_thal_wt = 0.16#0.2#1.6#2.5#3.5#1.5#6/25
+	GPi_thal_wt = 0.16
 
 	for ii = 1:length(thal_ar[1])
 
-		#GPi_ar_sh = shuffle(GPi_ar)
+		
 		GPi_ar_sh[1] = shuffle(GPi_ar[1])
 	    GPi_ar_sh[2] = shuffle(GPi_ar[2])
 		
-	#	syn_tot[thal_ar[ii],GPi_ar_sh[1:GPi_outdeg]] .= GPi_thal_wt
+	
 		
 		syn_tot[thal_ar[1][ii],GPi_ar[1][ii]] = GPi_thal_wt
 		syn_tot[thal_ar[2][ii],GPi_ar[2][ii]] = GPi_thal_wt
 
-		#syn_tot[thal_ar[1][ii],GPi_ar_sh[1][1:GPi_outdeg]] .= GPi_thal_wt
-		#syn_tot[thal_ar[2][ii],GPi_ar_sh[2][1:GPi_outdeg]] .= GPi_thal_wt 
-		
-	    
-	
 	end
 
 #connect str to GPi :
-    str_outdeg = 3#1#10
+    str_outdeg = 3
 	
-	str_GPi_wt = 4#3#1.3#7/25#6.5/25
+	str_GPi_wt = 4
 	
 
       for jj = 1:length(GPi_ar[1])
-		#str_ar_sh[1] = shuffle(str_ar[1])
-		#str_ar_sh[2] = shuffle(str_ar[2])  
-		  
-		#syn_tot[GPi_ar[1][jj],str_ar_sh[1][1:str_outdeg]] .= str_GPi_wt  
-		#syn_tot[GPi_ar[2][jj],str_ar_sh[2][1:str_outdeg]] .= str_GPi_wt    
+		
 		
 		 syn_tot[GPi_ar[1][jj],str_ar[1][jj]] = str_GPi_wt 
 		syn_tot[GPi_ar[2][jj],str_ar[2][jj]] = str_GPi_wt  
@@ -500,8 +471,8 @@ TAN_nrn[TAN_ar] .= 1
 #connect thal to cort block
 
 	ncb = length(targ_ar)
-	thal_outdeg=8#20#8#4
-    thal_cort_wt = 0.5#6#3#6#0.5#5#0.5#0.1*1#3
+	thal_outdeg=8
+    thal_cort_wt = 0.5
 	   
 	for kk = 1:length(targ_ar[ncb])
 	      thal_ar_sh[1] = shuffle(thal_ar[1])
@@ -510,16 +481,7 @@ TAN_nrn[TAN_ar] .= 1
 		   syn_tot[targ_ar[ncb][kk],thal_ar_sh[1][1:thal_outdeg]] .= thal_cort_wt
 		   syn_tot[targ_ar[ncb][kk],thal_ar_sh[2][1:thal_outdeg]] .= thal_cort_wt	  
     end
-"""
-	ncb = length(targ_ar)
-	thal_outdeg=1
-    thal_cort_wt = 2
-	for kk = 1:length(thal_ar)
-	       cort_ar_sh = shuffle(targ_ar[ncb])
-		   
-		   syn_tot[cort_ar_sh[1:thal_outdeg],thal_ar[kk]] .= thal_cort_wt	   
-	end
-"""	
+
 #connect cort to str
 
 	str_indeg = 4
@@ -535,7 +497,7 @@ TAN_nrn[TAN_ar] .= 1
 # =============================================
  #connect str to GPe	
 
-	str_GPe_wt = 4#1.3#7/25#6.5/25
+	str_GPe_wt = 4
 	
 
       for jj = 1:length(GPe_ar[1])
@@ -553,22 +515,18 @@ TAN_nrn[TAN_ar] .= 1
 	   for jj = 1:length(GPe_ar[1])
 		GPi_ar_sh[1] = shuffle(GPi_ar[1])  
 		GPi_ar_sh[2] = shuffle(GPi_ar[2])     
-		#syn_tot[GPi_ar[jj],str_ar_sh[1:str_outdeg]] .= str_GPi_wt  
 		syn_tot[GPi_ar_sh[1][jj],GPe_ar[1][jj]] = GPe_GPi_wt 
 		syn_tot[GPi_ar_sh[2][jj],GPe_ar[2][jj]] = GPe_GPi_wt  
 	   end	
 
 # connect GPe to STN
   
-    GPe_outdeg =  1#4
+    GPe_outdeg =  1
 	
-	GPe_STN_wt = 3.5#1.5#6/25
+	GPe_STN_wt = 3.5
 
 	for ii = 1:length(STN_ar[1])
 
-		#GPi_ar_sh = shuffle(GPi_ar)
-		
-	#	syn_tot[thal_ar[ii],GPi_ar_sh[1:GPi_outdeg]] .= GPi_thal_wt
 		syn_tot[STN_ar[1][ii],GPe_ar[1][ii]] = GPe_STN_wt
 		syn_tot[STN_ar[2][ii],GPe_ar[2][ii]] = GPe_STN_wt
 	end
@@ -589,7 +547,7 @@ TAN_nrn[TAN_ar] .= 1
 
 # connect thal to str
 
-	thal_str_wt = 0#0.002#0.1
+	thal_str_wt = 0
 
 	 for ii = 1:3:length(thal_ar[1])
 	    str_ar_sh[1] = shuffle(str_ar[1])
@@ -640,8 +598,8 @@ block_ar[1], inhib_ar[1], targ_ar[1], inhib_mod_ar[1], inhib_ff_ar[1]= cb_adj_ge
 
 	end
 	
-outdeg=8#4
-wt=1#0.5#0.25#2
+outdeg=8
+wt=1
 	
 Nrns_cort, syn_cort, inhib_ar, targ_ar, inhib, inh_nrn, inhib_mod, inh_mod_nrn, inhib_ff_ar, inhib_ff, inh_ff_nrn = connect_cb_hypergeometric(block_ar,inhib_ar,targ_ar,inhib_mod_ar, inhib_ff_ar,outdeg,wt);
 
@@ -751,7 +709,7 @@ inhib_ff
 # ╔═╡ 6d7ce7e5-65d3-4cf1-ab27-221cb07dd4a8
 #simulation paremeters
 begin
-    simtime = 1600#1000
+    simtime = 1600
 
 
 	
@@ -765,20 +723,18 @@ begin
 	E_syn[GPi_ar[2]] .= -70;
 	E_syn[GPe_ar[1]] .= -70;
 	E_syn[GPe_ar[2]] .= -70;
-	#E_syn[STN_ar[1]] .= -70;
-	#E_syn[STN_ar[2]] .= -70;
-	
+		
 
 	G_syn=3*ones(1,Nrns);
-	G_syn[inhib] .= 4#3#0.5*23;#25;
-	G_syn[inhib_mod[1]] = 7.5#6#2*20;
-	G_syn[inhib_mod[2]] = 7.5#6#2*20;
-	  G_syn[inhib_ff[1]] = 3.5#1.3#3
-	  G_syn[inhib_ff[2]] = 3.5#1.3#3
-    G_syn[str_ar[1]] .= 1.2#0.3*10;
-	G_syn[str_ar[2]] .= 1.2#0.3*10;
-	G_syn[GPi_ar[1]] .= 8#0.3*10;
-	G_syn[GPi_ar[2]] .= 8#0.3*10;
+	G_syn[inhib] .= 4
+	G_syn[inhib_mod[1]] = 7.5;
+	G_syn[inhib_mod[2]] = 7.5;
+	  G_syn[inhib_ff[1]] = 3.5;
+	  G_syn[inhib_ff[2]] = 3.5;
+    G_syn[str_ar[1]] .= 1.2;
+	G_syn[str_ar[2]] .= 1.2;
+	G_syn[GPi_ar[1]] .= 8;
+	G_syn[GPi_ar[2]] .= 8;
 	G_syn[GPe_ar[1]] .= 0.3*10;
 	G_syn[GPe_ar[2]] .= 0.3*10;
 	G_syn[STN_ar[1]] .= 0.3*10;
@@ -794,34 +750,26 @@ begin
 	τ[GPi_ar[2]] .= 70;
 	τ[GPe_ar[1]] .= 70;
 	τ[GPe_ar[2]] .= 70;
-    #τ[STN_ar[1]] .= 70;
-	#τ[STN_ar[2]] .= 70;
-	
-	freq1=16#16#16;
+    
+	freq1=16;
 	freq2=16;
 	freq3 = 12;
 	freq_str=12;
 	phase_lag=0;
 
 	I_in = zeros(Nrns);
-    I_in[GPi_ar[1]] = 4*ones(length(GPi_ar[1])) + 0.0*randn(length(GPi_ar[1]));#5
-	I_in[GPi_ar[2]] = 4*ones(length(GPi_ar[2])) + 0.0*randn(length(GPi_ar[2]));#5
-	#I_in[thal_ar[1]] .= (15/30)*30*ones(length(thal_ar[1])) + 0.0*randn(length(thal_ar[1]));#20 
-	#I_in[thal_ar[2]] .= (15/30)*30*ones(length(thal_ar[2])) + 0.0*randn(length(thal_ar[2]));#20 
+    I_in[GPi_ar[1]] = 4*ones(length(GPi_ar[1])) + 0.0*randn(length(GPi_ar[1]));
+	I_in[GPi_ar[2]] = 4*ones(length(GPi_ar[2])) + 0.0*randn(length(GPi_ar[2]));
+	
 
-	I_in[thal_ar[1]] .= (3/30)*30*ones(length(thal_ar[1])) + 0.0*randn(length(thal_ar[1]));#7#20 
-	I_in[thal_ar[2]] .= (3/30)*30*ones(length(thal_ar[2])) + 0.0*randn(length(thal_ar[2]));#7#20 
+	I_in[thal_ar[1]] .= 3*ones(length(thal_ar[1]));
+	I_in[thal_ar[2]] .= 3*ones(length(thal_ar[2]));
 
 	I_in[GPe_ar[1]] = 2*ones(length(GPe_ar[1])) + 0.0*randn(length(GPe_ar[1]));
 	I_in[GPe_ar[2]] = 2*ones(length(GPe_ar[2])) + 0.0*randn(length(GPe_ar[2]));
-	I_in[STN_ar[1]] .= 0.5*(10/30)*30*ones(length(STN_ar[1])) + 0.0*randn(length(STN_ar[1]));#20 
-	I_in[STN_ar[2]] .= 0.5*(10/30)*30*ones(length(STN_ar[2])) + 0.0*randn(length(STN_ar[2]));#20 
+	I_in[STN_ar[1]] .= 5*ones(length(STN_ar[1])) + 0.0*randn(length(STN_ar[1]));
+	I_in[STN_ar[2]] .= 5*ones(length(STN_ar[2])) + 0.0*randn(length(STN_ar[2])); 
 
-	I_in[TAN_ar] .= 1.5*0
-
-	#I_in[inhib_ff] .= 4.5
-
-	#I_in[str_ar[2]] .=-2
 	
 	
 end
@@ -830,16 +778,16 @@ end
 #setting the input pattern for test run for stimulus response
 begin
 
-if  rand()<=1#0.5 
+if  rand()<=1
 	 println("1")
-	 input_pattern = ptrn[:,1]#rand(1:512)]
+	 input_pattern = ptrn[:,1]
 	else
 	 input_pattern = ptrn[:,512+rand(1:512)]
 		println("2")
 end
 	
 	
-	I_in[targ_ar[1]] = 14*input_pattern;#14
+	I_in[targ_ar[1]] = 14*input_pattern;
 
 end;
 
@@ -849,28 +797,22 @@ begin
 @parameters phase_pfc=0
 end	
 
-# ╔═╡ f18e3d9a-810f-4849-bbaa-4b6142dde625
-# setting modulation frequencies and phases
-begin
- amp = 0.8	
- str_amp = 0.2*0
- tan_itn = 1.5
- asc_input1 = ascending_input(t,freq1,phase_pfc,amp)
- asc_input2 = ascending_input(t,freq2,phase_pfc,amp)
- str_input = ascending_input(t,freq3,phase_pfc,tan_itn)	
- input_ar = [asc_input1,asc_input2]
- for kk = 1:nblocks-2
- push!(input_ar,asc_input2)
- end
- push!(input_ar,str_input)	
-end;
+# ╔═╡ 3e2ac8d9-aedf-4826-b655-86d9c32a4ff1
+maximum(inh_ff_nrn)
+
 
 # ╔═╡ f7f439ef-ba85-4023-b478-3f095fd9ff5b
 #constructs ODESystem for entire system
-function synaptic_network(;name, sys=sys, adj_matrix=adj_matrix, input_ar=input_ar,inh_nrn = inh_nrn,inh_mod_nrn=inh_mod_nrn, inh_ff_nrn, str_nrn=str_nrn, GPi_nrn=GPi_nrn, thal_nrn=thal_nrn, GPe_nrn=GPe_nrn, STN_nrn=STN_nrn)
+function synaptic_network(;name, sys=sys, adj_matrix=adj_matrix, inh_nrn = inh_nrn,inh_mod_nrn=inh_mod_nrn, inh_ff_nrn, str_nrn=str_nrn, GPi_nrn=GPi_nrn, thal_nrn=thal_nrn, GPe_nrn=GPe_nrn, STN_nrn=STN_nrn,LC,ITN)
     syn_eqs= [ 0~sys[1].V - sys[1].V]
 
 	thal=findall(x->x>0, thal_nrn)
+	a_lc=LC.aₑ
+	b_lc=LC.bₑ
+	f_lc = (1/(LC.Cₑ*π))*(1-a_lc^2-b_lc^2)/(1+2*a_lc+a_lc^2+b_lc^2)  
+	a_itn=ITN.aₑ
+	b_itn=ITN.bₑ
+	f_itn = (1/(ITN.Cₑ*π))*(1-a_itn^2-b_itn^2)/(1+2*a_itn+a_itn^2+b_itn^2)  
 	        
     for ii = 1:length(sys)
        	
@@ -899,22 +841,23 @@ function synaptic_network(;name, sys=sys, adj_matrix=adj_matrix, input_ar=input_
 		push!(syn_eqs,eq[1])
 		
 		if (inh_mod_nrn[ii]>0) 
-            eq2 = [0 ~ postsyn_nrn.Iasc - input_ar[inh_mod_nrn[ii]]];
-			push!(syn_eqs,eq2[1])
+			
+			eq2 = [0 ~ postsyn_nrn.Iasc - 44*f_lc];
+          	push!(syn_eqs,eq2[1])
 		end
 
 		if (inh_ff_nrn[ii]>0) 
-            eq2 = [0 ~ postsyn_nrn.Iasc - input_ar[inh_ff_nrn[ii]]];
-			push!(syn_eqs,eq2[1])
+			eq2 = [0 ~ postsyn_nrn.Iasc - 44*f_lc];
+           	push!(syn_eqs,eq2[1])
 		end
 
-		if (inh_nrn[ii]>0)#||(inh_ff_nrn[ii]>0)
+		if (inh_nrn[ii]>0)
             eq2 = [0 ~ postsyn_nrn.Iasc];
 			push!(syn_eqs,eq2[1])
 		end
 
 		if TAN_nrn[ii]>0
-			eq2 = [0 ~ postsyn_nrn.Iasc - input_ar[end]];
+			eq2 = [0 ~ postsyn_nrn.Iasc - 100*f_itn];
 			push!(syn_eqs,eq2[1])
 		end
 
@@ -939,6 +882,8 @@ function synaptic_network(;name, sys=sys, adj_matrix=adj_matrix, input_ar=input_
     @named synaptic_eqs = ODESystem(syn_eqs,t)
     
     sys_ode = [sys[ii] for ii = 1:length(sys)]
+	push!(sys_ode,LC)
+	push!(sys_ode,ITN)
 
     @named synaptic_network = compose(synaptic_eqs, sys_ode)
     return structural_simplify(synaptic_network)   
@@ -975,10 +920,13 @@ nn = HH_neuron_wang_excit(name=Symbol("nrn$ii"),E_syn=E_syn[ii],G_syn=G_syn[ii],
 push!(nrn_network,nn)
 	end
 
-	#LC = NextGenerationBlox(name=Symbol("LC"),C=103, Δ=0.1, η_0=26.0, v_syn=-15, alpha_inv=0.1, k=10)
+	@named ITN = NextGenerationEIBlox(; Cₑ=2*36,Cᵢ=1*36, Δₑ=0.5, Δᵢ=0.5, η_0ₑ=10.0, η_0ᵢ=0.0, v_synₑₑ=10.0, v_synₑᵢ=-10.0, v_synᵢₑ=10.0, v_synᵢᵢ=-10.0, alpha_invₑₑ=10.0/36, alpha_invₑᵢ=0.8/36, alpha_invᵢₑ=10.0/36, alpha_invᵢᵢ=0.8/36, kₑₑ=0.0*36, kₑᵢ=0.6*36, kᵢₑ=0.6*36, kᵢᵢ=0*36) 
 
+	@named LC = NextGenerationEIBlox(; Cₑ=2*26,Cᵢ=1*26, Δₑ=0.5, Δᵢ=0.5, η_0ₑ=10.0, η_0ᵢ=0.0, v_synₑₑ=10.0, v_synₑᵢ=-10.0, v_synᵢₑ=10.0, v_synᵢᵢ=-10.0, alpha_invₑₑ=10.0/26, alpha_invₑᵢ=0.8/26, alpha_invᵢₑ=10.0/26, alpha_invᵢᵢ=0.8/26, kₑₑ=0.0*26, kₑᵢ=0.6*26, kᵢₑ=0.6*26, kᵢᵢ=0*26) 
 
-@named syn_net = synaptic_network(sys=nrn_network,adj_matrix=syn, input_ar=input_ar, inh_nrn=inh_nrn, inh_mod_nrn=inh_mod_nrn, inh_ff_nrn=inh_ff_nrn,str_nrn=str_nrn, GPi_nrn=GPi_nrn, thal_nrn=thal_nrn, GPe_nrn=GPe_nrn, STN_nrn=STN_nrn)
+	
+
+@named syn_net = synaptic_network(sys=nrn_network,adj_matrix=syn, inh_nrn=inh_nrn, inh_mod_nrn=inh_mod_nrn, inh_ff_nrn=inh_ff_nrn,str_nrn=str_nrn, GPi_nrn=GPi_nrn, thal_nrn=thal_nrn, GPe_nrn=GPe_nrn, STN_nrn=STN_nrn, LC=LC, ITN=ITN)
 	
 
 
@@ -1028,13 +976,8 @@ for ii in in_con
 global	dd=push!(dd,indexof(vvv,parameters(syn_net)))
 end
 
-global phase_ind = indexof(phase_pfc,parameters(syn_net))	
-
 
 end
-
-# ╔═╡ 68327a97-59bf-466b-ad28-4161a66682aa
-Nrns
 
 # ╔═╡ 9a3721f6-2b99-400e-af9d-c3969b57369a
 begin
@@ -1048,7 +991,7 @@ begin
 	prob_param0[cc] .= 0*I_in[targ_ar[1]]	
 	prob0 = remake(prob;p=prob_param0, tspan = (0,500))
 	
-	soll = solve(prob0,Vern7(),saveat = 0.1)#,saveat = 0.1,reltol=1e-4,abstol=1e-4);
+	soll = solve(prob0,Vern7(),saveat = 0.1)
 
 	ss = convert(Array,soll);
 	
@@ -1061,117 +1004,6 @@ begin
 	end
 	
 end
-
-# ╔═╡ 9f7fe203-ac41-4502-9b41-7028bf9f21b3
-begin
-	"""
-adj_vec_t=vec(adj3)
-trl_set=100	
-spt=Vector{Vector{Float32}}(undef,100*trl_set)	
-
-	fir_patt=1
-
-if fir_patt==1
-	
-for loop4 = 1:trl_set
-@info loop4	
-	
-if loop4 in collect(1:25) #catgA correct
-input_pattern6 = ptrn[:,rand(1:512)]
-I_in6 = zeros(Nrns);
-I_in6[targ_ar[1]] = 14*input_pattern5 #14;
-strin1=0
-strin2=-2
-end
-	
-if loop4 in collect(26:50) #catgA incorrect
-input_pattern6 = ptrn[:,rand(1:512)]
-I_in6 = zeros(Nrns);
-I_in6[targ_ar[1]] = 14*input_pattern5 #14;
-strin1=-2
-strin2=0
-end
-
-if loop4 in collect(51:75) #catgB incorrect
-input_pattern6 = ptrn[:,512+rand(1:512)]
-I_in6 = zeros(Nrns);
-I_in6[targ_ar[1]] = 14*input_pattern5 #14;
-strin1=-2
-strin2=0
-end	
-
-if loop4 in collect(76:100) #catgB incorrect
-input_pattern6 = ptrn[:,512+rand(1:512)]
-I_in6 = zeros(Nrns);
-I_in6[targ_ar[1]] = 14*input_pattern5 #14;
-strin1=0
-strin2=-2
-end		
-	
-
-
-
-#adj_vec=vec(adj_rec[:,:,650])
-con_ind = findall(x-> x>0,vec(syn))
-prob_param_t=copy(prob.p)
-prob_param_t[cc] = I_in6[targ_ar[1]]	
-prob_param_t[dd] = adj_vec_t[con_ind]
-prob_param_t[str_ind1] .= strin1	
-prob_param_t[str_ind2] .= strin2	
-prob_param_t[phase_ind] = rand()*2*pi
-	
-
-
-prob_new_t = remake(prob;p=prob_param_t, u0=initial_state, tspan = (0,1600))
-soll3 = solve(prob_new_t,Vern7(),saveat = 0.1)
-sol_ar = convert(Array,soll3);
-
-
-	V_fp=zeros(Nrns,length(soll3.t));
-	
-	for ii = 1:Nrns
-		
-	   	V_fp[ii,:] =  sol_ar[(((ii-1)*7)+1),1:end];
-		
-	end
-
-
-
-
-	
-	
- for ii = 1:100	
-	
-   v=V_fp[targ_ar[2][ii],:];
-   time=soll3.t/10;
-	
-	tt = findpeaks(v,time,min_height=0.0)/10
-    tt=sort(tt)
-	 
-	 if length(tt)==0
-	     tt = zeros(10)
-	 end
-	 
-	 spt[(loop4-1)*100+ii] = tt
-	 
- end
-
-
-	
-
-
-end
-
-	open("spt_pattern13.txt", "w") do io
-          writedlm(io, spt, ",")
-	end
-
-end
-"""
-end
-
-# ╔═╡ 49033ddf-c182-4d40-a65e-726fa536d90e
-targ_ar[1]
 
 # ╔═╡ 143ab0df-0fd1-4add-ae31-1b734eb86ef4
 begin
@@ -1340,19 +1172,15 @@ adj_vec=vec(adj3)
 
 input_pattern5 = ptrn[:,512+rand(1:512)]
 I_in5 = zeros(Nrns);
-I_in5[targ_ar[1]] = 14*input_pattern5 #14;
+I_in5[targ_ar[1]] = 14*input_pattern5;
 
-#adj_vec=vec(adj_rec[:,:,650])
 con_ind = findall(x-> x>0,vec(syn))
 prob_param=copy(prob.p)
 prob_param[cc] = I_in5[targ_ar[1]]	
 prob_param[dd] = adj_vec[con_ind]
 prob_param[str_ind1] .= -2	
 prob_param[str_ind2] .= 0	
-rp = rand()*2*pi
-prob_param[phase_ind] = rp
-#prob_param[phase_ind] = 0#rand()*2*pi
-	
+rp = rand()*2*pi	
 
 global initial_state = ss[:,end]	
 	g_ind=[i*7 for i= 1:Nrns]
@@ -1363,8 +1191,7 @@ end
 
 # ╔═╡ 225e1431-bf2a-4855-abd6-f0d826b5abe8
 soll2 = solve(prob_new,Vern7(),saveat = 0.1)
-#soll2 = solve(prob,Vern7(),saveat = 0.1)
-#soll2=soll
+
 
 # ╔═╡ 86b87ae5-01c9-4fc8-b37a-e5bf8b8d9d72
 begin
@@ -1537,7 +1364,7 @@ plot!(pl1,soll2.t,[VV[inhib_mod_ar[2],:]],legend=false,yticks=[],color = "green"
 end
 
 # ╔═╡ 38426b82-b213-4406-ae54-5e43ad1a6e40
-plot(soll2.t[1:900],V[targ_ar[2][6],1:900])
+plot(soll2.t[1:9000],V[targ_ar[2][6],1:9000])
 
 # ╔═╡ daaaf5ac-b764-419f-9289-4ede7b9b92c4
 begin
@@ -2468,14 +2295,11 @@ end
 plot(Gray.(str_rec2[:,1:700]./maximum(str_rec2)))
 
 # ╔═╡ Cell order:
-# ╠═8872e8db-cb41-4068-8401-1721f07642c8
 # ╠═406f6214-cb40-11ec-037a-1325bda2f580
 # ╠═1a01f8a2-d779-4b64-9401-3e746acdd6ab
 # ╠═abf532aa-d333-42fe-96de-b9ada89852e9
 # ╠═dbd16f92-8b0a-49c7-8bfd-1503967bdd9d
 # ╠═c1ee3eed-5730-4ab1-a012-af6cce952024
-# ╠═407ed4ff-9fec-4df8-a0ba-c264d1f7d2db
-# ╠═5099a19c-0a25-4dc1-8442-ddf9ac56ef8f
 # ╠═72112d41-4432-4233-9ab3-d9011674a3f8
 # ╠═f7bb61b5-70f1-46ed-a8fd-bb26ca8fc32f
 # ╠═8e6fcff1-3387-42b5-8d1f-8ba769adf6ca
@@ -2483,16 +2307,14 @@ plot(Gray.(str_rec2[:,1:700]./maximum(str_rec2)))
 # ╠═7b070751-5d29-4f97-b4e0-899e35aa7041
 # ╠═697586f1-0539-474f-99df-4106e39012ba
 # ╠═4abaf4c3-14ac-4c82-a812-3fd4ee87e824
-# ╠═64faf636-43c9-4aa9-8d78-e7aa4d91db50
 # ╠═0a803feb-3dd1-43ac-9afc-1b0afd19ce2d
 # ╠═738fb9f1-81f3-4738-a8bd-407461c9586f
 # ╠═ca25e5b5-9c81-461f-b014-54221ffd06c6
-# ╠═e4b89f6a-21f0-42ca-950c-448afa5ec535
 # ╠═61c5b42a-8723-4334-a3ba-8c8558b11284
 # ╠═233e2ddc-6148-459a-87ed-16646fea5316
 # ╠═3be21966-09e5-46be-995c-c53e49d0a3c2
 # ╠═c35348de-e55e-4c20-895e-f49a1bbeec4b
-# ╠═95653cf9-4db8-4cf9-b38b-fcb639c03bd7
+# ╠═9fae6c1b-7f39-4196-9afc-5741a953e893
 # ╠═ae38608c-2193-4439-b439-29fa7805c05f
 # ╠═a42dcd5b-dc7b-47bf-8536-be6c21c2967b
 # ╠═b37c39ea-6746-48a9-b450-b3ea25530e7f
@@ -2503,21 +2325,18 @@ plot(Gray.(str_rec2[:,1:700]./maximum(str_rec2)))
 # ╠═88ebe172-46a3-4032-acf3-950e5d9ab7a6
 # ╠═dc575aaf-887e-40e0-9e19-235e16532735
 # ╠═6d7ce7e5-65d3-4cf1-ab27-221cb07dd4a8
-# ╠═f18e3d9a-810f-4849-bbaa-4b6142dde625
 # ╠═c0943891-c172-432b-bb2f-59dedcebc07d
 # ╠═15b613ff-5edb-49a7-b770-a2afcd361091
+# ╠═3e2ac8d9-aedf-4826-b655-86d9c32a4ff1
 # ╠═f7f439ef-ba85-4023-b478-3f095fd9ff5b
 # ╠═092502cf-4a04-4d70-b954-f3dfd2a6c9fa
 # ╠═e1932634-20f9-4281-bbf9-6e910fc5dd8b
 # ╠═ec6d5982-6e80-48ed-9d49-edc7fb07888c
-# ╠═68327a97-59bf-466b-ad28-4161a66682aa
 # ╠═9a3721f6-2b99-400e-af9d-c3969b57369a
 # ╠═58478f96-2575-473c-bf54-4f34dcb421cc
-# ╠═9f7fe203-ac41-4502-9b41-7028bf9f21b3
 # ╠═225e1431-bf2a-4855-abd6-f0d826b5abe8
 # ╠═86b87ae5-01c9-4fc8-b37a-e5bf8b8d9d72
 # ╠═13f9dd2a-2566-47ce-88dd-448c13717724
-# ╠═49033ddf-c182-4d40-a65e-726fa536d90e
 # ╠═e41b9d11-0331-4318-8cbb-5d3554965f0e
 # ╠═75477cad-d973-45b8-9ce5-ab42d0f54051
 # ╠═5ea63b2d-6867-4185-91d5-f74c9e88230f
