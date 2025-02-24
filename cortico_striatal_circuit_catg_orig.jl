@@ -1246,7 +1246,7 @@ decision=0
 
 #determination of tan suppression and DA uptick
 
-    global tan_amp=0*100
+    global tan_amp=100
 	
 	
 	global	tan_input1_short = minimum([tan_amp ./(sum(spks_short[ii] .* str_in[ii][1][1:end])+sum(spks_short[ii] .* str_in[ii][2][1:end])),tan_amp]) 
@@ -1593,7 +1593,7 @@ plot(dop_ar[30:end]./30,legend=false,xlabel="trials",ylabel="accuracy",ylims=(0,
 plot(soll2.t,pfc_LSS'[:,700],legend=false)
 
 # ╔═╡ 4d221955-5662-4136-9d70-7649717e58bc
-plot(soll2.t,str_LSS'[:,700],legend=false)
+plot(soll2.t,str_LSS'[:,500],legend=false)
 
 # ╔═╡ 3e979bd4-a173-44fd-9a5e-c9b04a718827
 Gray.(trial_dec[1:700]./2)
@@ -1793,30 +1793,6 @@ end
 # ╔═╡ 792289ee-d971-4362-9a6c-aac49e14d911
 plot(Gray.(str_rec2[:,1:700]./maximum(str_rec2)))
 
-# ╔═╡ 58478f96-2575-473c-bf54-4f34dcb421cc
-begin
-
-adj_vec=vec(adj3)
-
-input_pattern5 = ptrn[:,512+rand(1:512)]
-I_in5 = zeros(Nrns);
-I_in5[targ_ar[1]] = 14*input_pattern5;
-
-con_ind = findall(x-> x>0,vec(syn))
-prob_param=copy(prob.p)
-prob_param[cc] = I_in5[targ_ar[1]]	
-prob_param[dd] = adj_vec[con_ind]
-prob_param[str_ind1] .= -2	
-prob_param[str_ind2] .= 0	
-rp = rand()*2*pi	
-
-global initial_state = ss[:,end]	
-	g_ind=[i*7 for i= 1:Nrns]
-	initial_state[g_ind] .= 0.0
-prob_new = remake(prob;p=prob_param, u0=initial_state, tspan = (0,1600))
-
-end
-
 # ╔═╡ 86b87ae5-01c9-4fc8-b37a-e5bf8b8d9d72
 begin
  ss2 = convert(Array,soll2);
@@ -1847,47 +1823,29 @@ begin
    average_str2_ = mean(V_spks[str_ar[2],:],dims=1)	
 end
 
-# ╔═╡ 092502cf-4a04-4d70-b954-f3dfd2a6c9fa
+# ╔═╡ 58478f96-2575-473c-bf54-4f34dcb421cc
 begin
 
-nrn_network=[]
-	for ii = 1:Nrns
-		if (inh_nrn[ii]>0) || (inh_mod_nrn[ii]>0) 
-nn = HH_neuron_wang_inhib(name=Symbol("nrn$ii"),E_syn=E_syn[ii],G_syn=G_syn[ii],I_in=I_in[ii],τ=τ[ii])
-		
-		elseif inh_ff_nrn[ii]>0
-nn = HH_neuron_wang_inhib(name=Symbol("nrn$ii"),E_syn=E_syn[ii],G_syn=G_syn[ii],I_in=I_in[ii],τ=τ[ii])			
-			
-		elseif (str_nrn[ii]>0) || (GPi_nrn[ii]>0)
-nn = HH_neuron_wang_inhib(name=Symbol("nrn$ii"),E_syn=E_syn[ii],G_syn=G_syn[ii],I_in=I_in[ii],τ=τ[ii])
+adj_vec=vec(adj3)
 
-		elseif (GPe_nrn[ii]>0) 
-nn = HH_neuron_wang_inhib(name=Symbol("nrn$ii"),E_syn=E_syn[ii],G_syn=G_syn[ii],I_in=I_in[ii],τ=τ[ii])	
+input_pattern5 = ptrn[:,512+rand(1:512)]
+I_in5 = zeros(Nrns);
+I_in5[targ_ar[1]] = 14*input_pattern5;
 
-		elseif thal_nrn[ii]	>0 || (STN_nrn[ii]>0)
-nn = HH_neuron_wang_excit_thal(name=Symbol("nrn$ii"),E_syn=E_syn[ii],G_syn=G_syn[ii],I_in=I_in[ii],τ=τ[ii])
-			
-		elseif TAN_nrn[ii] > 0
-nn = HH_neuron_TAN_excit(name=Symbol("nrn$ii"),E_syn=E_syn[ii],G_syn=G_syn[ii],I_in=I_in[ii],freq=freq_str,τ=τ[ii])			
-		
-		else
+con_ind = findall(x-> x>0,vec(syn))
+prob_param=copy(prob.p)
+prob_param[cc] = I_in5[targ_ar[1]]	
+prob_param[dd] = adj_vec[con_ind]
+prob_param[str_ind1] .= -2	
+prob_param[str_ind2] .= 0	
+rp = rand()*2*pi	
 
-nn = HH_neuron_wang_excit(name=Symbol("nrn$ii"),E_syn=E_syn[ii],G_syn=G_syn[ii],I_in=I_in[ii],τ=τ[ii])
-		end
-push!(nrn_network,nn)
-	end
+global initial_state = ss[:,end]	
+	g_ind=[i*7 for i= 1:Nrns]
+	initial_state[g_ind] .= 0.0
+prob_new = remake(prob;p=prob_param, u0=initial_state, tspan = (0,1600))
 
-	@named ITN = NextGenerationEIBlox(; Cₑ=2*36,Cᵢ=1*36, Δₑ=0.5, Δᵢ=0.5, η_0ₑ=10.0, η_0ᵢ=0.0, v_synₑₑ=10.0, v_synₑᵢ=-10.0, v_synᵢₑ=10.0, v_synᵢᵢ=-10.0, alpha_invₑₑ=10.0/36, alpha_invₑᵢ=0.8/36, alpha_invᵢₑ=10.0/36, alpha_invᵢᵢ=0.8/36, kₑₑ=0.0*36, kₑᵢ=0.6*36, kᵢₑ=0.6*36, kᵢᵢ=0*36) 
-
-	@named LC = NextGenerationEIBlox(; Cₑ=2*26,Cᵢ=1*26, Δₑ=0.5, Δᵢ=0.5, η_0ₑ=10.0, η_0ᵢ=0.0, v_synₑₑ=10.0, v_synₑᵢ=-10.0, v_synᵢₑ=10.0, v_synᵢᵢ=-10.0, alpha_invₑₑ=10.0/26, alpha_invₑᵢ=0.8/26, alpha_invᵢₑ=10.0/26, alpha_invᵢᵢ=0.8/26, kₑₑ=0.0*26, kₑᵢ=0.6*26, kᵢₑ=0.6*26, kᵢᵢ=0*26) 
-
-	
-
-@named syn_net = synaptic_network(sys=nrn_network,adj_matrix=syn, inh_nrn=inh_nrn, inh_mod_nrn=inh_mod_nrn, inh_ff_nrn=inh_ff_nrn,str_nrn=str_nrn, GPi_nrn=GPi_nrn, thal_nrn=thal_nrn, GPe_nrn=GPe_nrn, STN_nrn=STN_nrn, LC=LC, ITN=ITN)
-	
-
-
-end;
+end
 
 # ╔═╡ ec6d5982-6e80-48ed-9d49-edc7fb07888c
 begin
@@ -1933,10 +1891,6 @@ end
 
 end
 
-# ╔═╡ 225e1431-bf2a-4855-abd6-f0d826b5abe8
-soll2 = solve(prob_new,Vern7(),saveat = 0.1)
-
-
 # ╔═╡ c35348de-e55e-4c20-895e-f49a1bbeec4b
 function HH_neuron_TAN_excit(;name,E_syn=0.0,G_syn=2,I_in=0,freq=0,phase=0,τ=10)
 	sts = @variables V(t)=-65.00 n(t)=0.32 m(t)=0.05 h(t)=0.59 Iasc(t) = 0.0 Isyn(t)=0.0 G(t)=0.0 z(t)=0.0 Gₛₜₚ(t)=0.0  
@@ -1971,6 +1925,52 @@ G_asymp(v,G_syn) = (G_syn/(1 + exp(-4.394*((v-V_shift)/V_range))))
 	      ]
 	ODESystem(eqs,t,sts,ps;name=name)
 end
+
+# ╔═╡ 225e1431-bf2a-4855-abd6-f0d826b5abe8
+soll2 = solve(prob_new,Vern7(),saveat = 0.1)
+
+
+# ╔═╡ 092502cf-4a04-4d70-b954-f3dfd2a6c9fa
+begin
+
+nrn_network=[]
+	for ii = 1:Nrns
+		if (inh_nrn[ii]>0) || (inh_mod_nrn[ii]>0) 
+nn = HH_neuron_wang_inhib(name=Symbol("nrn$ii"),E_syn=E_syn[ii],G_syn=G_syn[ii],I_in=I_in[ii],τ=τ[ii])
+		
+		elseif inh_ff_nrn[ii]>0
+nn = HH_neuron_wang_inhib(name=Symbol("nrn$ii"),E_syn=E_syn[ii],G_syn=G_syn[ii],I_in=I_in[ii],τ=τ[ii])			
+			
+		elseif (str_nrn[ii]>0) || (GPi_nrn[ii]>0)
+nn = HH_neuron_wang_inhib(name=Symbol("nrn$ii"),E_syn=E_syn[ii],G_syn=G_syn[ii],I_in=I_in[ii],τ=τ[ii])
+
+		elseif (GPe_nrn[ii]>0) 
+nn = HH_neuron_wang_inhib(name=Symbol("nrn$ii"),E_syn=E_syn[ii],G_syn=G_syn[ii],I_in=I_in[ii],τ=τ[ii])	
+
+		elseif thal_nrn[ii]	>0 || (STN_nrn[ii]>0)
+nn = HH_neuron_wang_excit_thal(name=Symbol("nrn$ii"),E_syn=E_syn[ii],G_syn=G_syn[ii],I_in=I_in[ii],τ=τ[ii])
+			
+		elseif TAN_nrn[ii] > 0
+nn = HH_neuron_TAN_excit(name=Symbol("nrn$ii"),E_syn=E_syn[ii],G_syn=G_syn[ii],I_in=I_in[ii],freq=freq_str,τ=τ[ii])			
+		
+		else
+
+nn = HH_neuron_wang_excit(name=Symbol("nrn$ii"),E_syn=E_syn[ii],G_syn=G_syn[ii],I_in=I_in[ii],τ=τ[ii])
+		end
+push!(nrn_network,nn)
+	end
+
+	@named ITN = NextGenerationEIBlox(; Cₑ=2*36,Cᵢ=1*36, Δₑ=0.5, Δᵢ=0.5, η_0ₑ=10.0, η_0ᵢ=0.0, v_synₑₑ=10.0, v_synₑᵢ=-10.0, v_synᵢₑ=10.0, v_synᵢᵢ=-10.0, alpha_invₑₑ=10.0/36, alpha_invₑᵢ=0.8/36, alpha_invᵢₑ=10.0/36, alpha_invᵢᵢ=0.8/36, kₑₑ=0.0*36, kₑᵢ=0.6*36, kᵢₑ=0.6*36, kᵢᵢ=0*36) 
+
+	@named LC = NextGenerationEIBlox(; Cₑ=2*26,Cᵢ=1*26, Δₑ=0.5, Δᵢ=0.5, η_0ₑ=10.0, η_0ᵢ=0.0, v_synₑₑ=10.0, v_synₑᵢ=-10.0, v_synᵢₑ=10.0, v_synᵢᵢ=-10.0, alpha_invₑₑ=10.0/26, alpha_invₑᵢ=0.8/26, alpha_invᵢₑ=10.0/26, alpha_invᵢᵢ=0.8/26, kₑₑ=0.0*26, kₑᵢ=0.6*26, kᵢₑ=0.6*26, kᵢᵢ=0*26) 
+
+	
+
+@named syn_net = synaptic_network(sys=nrn_network,adj_matrix=syn, inh_nrn=inh_nrn, inh_mod_nrn=inh_mod_nrn, inh_ff_nrn=inh_ff_nrn,str_nrn=str_nrn, GPi_nrn=GPi_nrn, thal_nrn=thal_nrn, GPe_nrn=GPe_nrn, STN_nrn=STN_nrn, LC=LC, ITN=ITN)
+	
+
+
+end;
 
 # ╔═╡ Cell order:
 # ╠═406f6214-cb40-11ec-037a-1325bda2f580
