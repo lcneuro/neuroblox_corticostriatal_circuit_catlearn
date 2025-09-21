@@ -1,2 +1,2 @@
 # neuroblox_corticostriatal_circuit_catlearn
-Neuroblox implementation of Corticostriatal Circuit for Category Learning
+Standalone Julia implementation of Corticostriatal Circuit for Category Learning
